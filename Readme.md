@@ -1,5 +1,7 @@
 # Saleor eCommerce Platform Docker Orchestration
 
+[Saleor](https://getsaleor.com/) - A GRAPHQL-FIRST ECOMMERCE PLATFORM FOR PERFECTIONISTS
+
 ## Install
 
     $ git clone https://github.com/avoinea/docker.deploy.saleor mystore.com
