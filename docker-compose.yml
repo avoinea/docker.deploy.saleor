@@ -1,0 +1,140 @@
+version: "2"
+services:
+
+  apache:
+    image: eeacms/apache:2.4-2.1-alpine
+    restart: unless-stopped
+    ports:
+    - "80:80"
+    - "443:443"
+    networks:
+      - saleor
+    environment:
+      TZ: "${TZ}"
+      APACHE_MODULES: "http2_module"
+      APACHE_CONFIG: |-
+        <VirtualHost *:80>
+          ServerName ${URL}
+          RewriteEngine On
+          RewriteRule ^(.*)$$ https://${URL}$$1 [R=permanent,L]
+        </VirtualHost>
+        <VirtualHost *:443>
+              ServerName ${URL}
+              Protocols h2 http/1.1
+              H2ModernTLSOnly off
+              ProxyRequests Off
+              SSLEngine on
+              SSLProtocol ALL -SSLv2 -SSLv3
+              SSLCipherSuite ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS;
+              SSLHonorCipherOrder on
+              SSLCertificateFile /etc/apache/certs/live/${URL}/cert.pem
+              SSLCertificateKeyFile /etc/apache/certs/live/${URL}/privkey.pem
+              SSLCertificateChainFile /etc/apache/certs/live/${URL}/fullchain.pem
+
+              RewriteEngine On
+              RewriteRule ^(.*)$$ http://saleor:8000$$1 [P]
+          </VirtualHost>
+    volumes:
+    - certs:/etc/apache/certs:ro
+
+  saleor:
+    image: mirumee/saleor:d68063606888913654c2ec68e6f58ae87d132f86
+    restart: unless-stopped
+    networks:
+      - saleor
+    environment:
+      TZ: "${TZ}"
+      SECRET_KEY: "${SECRET_KEY}"
+      DATABASE_URL: "postgres://${POSTGRES_DBUSER}:${POSTGRES_DBPASS}@db/${POSTGRES_DBNAME}"
+      DEFAULT_FROM_EMAIL: "noreply@${HOST}"
+      ELASTICSEARCH_URL: "http://es:9200"
+      CACHE_URL: "redis://redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      JWT_VERIFY_EXPIRATION: "True"
+      ALLOWED_HOSTS: "saleor"
+    depends_on:
+    - db
+    - es
+    - redis
+
+  celery:
+    image: mirumee/saleor:d68063606888913654c2ec68e6f58ae87d132f86
+    restart: unless-stopped
+    networks:
+      - saleor
+    environment:
+      TZ: "${TZ}"
+      SECRET_KEY: "${SECRET_KEY}"
+      DATABASE_URL: "postgres://${POSTGRES_DBUSER}:${POSTGRES_DBPASS}@db/${POSTGRES_DBNAME}"
+      DEFAULT_FROM_EMAIL: "noreply@${HOST}"
+      ELASTICSEARCH_URL: "http://es:9200"
+      CACHE_URL: "redis://redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      JWT_VERIFY_EXPIRATION: "True"
+      ALLOWED_HOSTS: "saleor"
+    depends_on:
+    - db
+    - es
+    - redis
+    links:
+    - db
+    - es
+    - redis
+    command: celery -A saleor worker --app=saleor.celeryconf:app --loglevel=info
+
+  db:
+    image: eeacms/postgres:9.6-3.5
+    restart: unless-stopped
+    networks:
+      - saleor
+    environment:
+      TZ: "${TZ}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DBNAME: "${POSTGRES_DBNAME}"
+      POSTGRES_DBUSER: "${POSTGRES_DBUSER}"
+      POSTGRES_DBPASS: "${POSTGRES_DBPASS}"
+      POSTGRES_CONFIG_shared_buffers: "512MB"
+      POSTGRES_CONFIG_effective_cache_size: "512MB"
+      POSTGRES_CONFIG_max_wal_size: "512MB"
+    volumes:
+    - db:/var/lib/postgresql/data
+    - dump:/postgresql.backup
+
+  redis:
+    image: redis:5.0.2
+    restart: unless-stopped
+    networks:
+      - saleor
+    environment:
+      TZ: "${TZ}"
+    volumes:
+      - redis:/data
+
+  es:
+    image: elasticsearch:6.5.2
+    restart: unless-stopped
+    networks:
+      - saleor
+    environment:
+      - "discovery.type=single-node"
+      - "TZ=${TZ}"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m -Dlog4j2.disable.jmx=true"
+    volumes:
+      - es:/usr/share/elasticsearch/
+
+networks:
+  saleor:
+    driver: bridge
+
+volumes:
+  certs:
+    external: true
+  db:
+    driver: local
+  dump:
+    driver: local
+  redis:
+    driver: local
+  es:
+    driver: local
