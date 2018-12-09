@@ -38,16 +38,16 @@
 
 * Setup PostgreSQL
 
-    $ docker-compose exec db gosu postgres psql -d saleor -c "ALTER USER saleor WITH SUPERUSER"
-    $ docker-compose exec saleor python manage.py migrate
+      $ docker-compose exec db gosu postgres psql -d saleor -c "ALTER USER saleor WITH SUPERUSER"
+      $ docker-compose exec saleor python manage.py migrate
 
 * Setup ElasticSearch
 
-    $ docker-compose exec saleor python manage.py search_index --rebuild
+      $ docker-compose exec saleor python manage.py search_index --rebuild
 
 * Create admin user
 
-    $ docker-compose exec saleor python manage.py createsuperuser
+      $ docker-compose exec saleor python manage.py createsuperuser
 
 ## Start selling your products
 
