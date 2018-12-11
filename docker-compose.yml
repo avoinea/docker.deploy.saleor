@@ -44,18 +44,24 @@ services:
       - saleor
     environment:
       TZ: "${TZ}"
+      DEBUG: "False"
       SECRET_KEY: "${SECRET_KEY}"
       DATABASE_URL: "postgres://${POSTGRES_DBUSER}:${POSTGRES_DBPASS}@db/${POSTGRES_DBNAME}"
+      DEFAULT_CURRENCY: "${DEFAULT_CURRENCY}"
+      DEFAULT_COUNTRY: "${DEFAULT_COUNTRY}"
       DEFAULT_FROM_EMAIL: "noreply@${HOST}"
       ELASTICSEARCH_URL: "http://es:9200"
       CACHE_URL: "redis://redis:6379/0"
       CELERY_BROKER_URL: "redis://redis:6379/1"
       JWT_VERIFY_EXPIRATION: "True"
       ALLOWED_HOSTS: "saleor"
+      VATLAYER_ACCESS_KEY: "${VATLAYER_ACCESS_KEY}"
+      EMAIL_URL: "smtp://postfix:25"
     depends_on:
     - db
     - es
     - redis
+    - postfix
 
   celery:
     image: mirumee/saleor:d68063606888913654c2ec68e6f58ae87d132f86
@@ -64,22 +70,24 @@ services:
       - saleor
     environment:
       TZ: "${TZ}"
+      DEBUG: "False"
       SECRET_KEY: "${SECRET_KEY}"
       DATABASE_URL: "postgres://${POSTGRES_DBUSER}:${POSTGRES_DBPASS}@db/${POSTGRES_DBNAME}"
+      DEFAULT_CURRENCY: "${DEFAULT_CURRENCY}"
+      DEFAULT_COUNTRY: "${DEFAULT_COUNTRY}"
       DEFAULT_FROM_EMAIL: "noreply@${HOST}"
       ELASTICSEARCH_URL: "http://es:9200"
       CACHE_URL: "redis://redis:6379/0"
       CELERY_BROKER_URL: "redis://redis:6379/1"
       JWT_VERIFY_EXPIRATION: "True"
       ALLOWED_HOSTS: "saleor"
+      VATLAYER_ACCESS_KEY: "${VATLAYER_ACCESS_KEY}"
+      EMAIL_URL: "smtp://postfix:25"
     depends_on:
     - db
     - es
     - redis
-    links:
-    - db
-    - es
-    - redis
+    - postfix
     command: celery -A saleor worker --app=saleor.celeryconf:app --loglevel=info
 
   db:
@@ -122,6 +130,16 @@ services:
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m -Dlog4j2.disable.jmx=true"
     volumes:
       - es:/usr/share/elasticsearch/
+
+  postfix:
+    image: eeacms/postfix:2.10-3.3
+    environment:
+      MTP_HOST: "${HOST}"
+      MTP_RELAY: "${EMAIL_RELAY_HOST}"
+      MTP_PORT: "${EMAIL_RELAY_PORT}"
+      MTP_USER: "${EMAIL_RELAY_USER}"
+      MTP_PASS: "${EMAIL_RELAY_PASS}"
+      TZ: "${TZ}"
 
 networks:
   saleor:
